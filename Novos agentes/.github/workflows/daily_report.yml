@@ -1,0 +1,45 @@
+name: Daily Fiscal Report
+
+on:
+  schedule:
+    # Runs at 11:00 UTC (08:00 AM Brasilia Time) every day
+    - cron: '0 11 * * *'
+  workflow_dispatch: # Allows manual run from GitHub interface
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create credentials file from Secret
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" > service_account.json
+        shell: bash
+
+      - name: Run Agent System
+        env:
+          SOURCE_TYPE: DRIVE
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          # We don't strictly need GITHUB_TOKEN here unless we want to commit back
+          # But let's keep it simple: Read Drive -> Process -> Upload to Drive
+        run: |
+          python main.py
+
+      - name: Upload Artifact (Backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-fiscal
+          path: relatorio_final.csv

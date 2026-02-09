@@ -1,0 +1,40 @@
+name: Run Multi-Agent System
+
+on:
+  workflow_dispatch: # Allows manual triggering
+  schedule:
+    - cron: '0 9 * * *' # Runs daily at 09:00 UTC
+
+jobs:
+  run-agents:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        if [ -f "requirements.txt" ]; then pip install -r requirements.txt; fi
+        if [ -f "Novos agentes/requirements.txt" ]; then pip install -r "Novos agentes/requirements.txt"; fi
+        
+    - name: Create credentials.json
+      run: |
+        echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > "Novos agentes/credentials.json"
+      # Only needed if using DRIVE source and running on GitHub Actions
+      if: "${{ env.SOURCE_TYPE == 'DRIVE' }}"
+
+    - name: Run Main Script
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: credentials.json
+        GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} # Use a PAT stored in secrets, or GITHUB_TOKEN
+        GITHUB_REPO_NAME: ${{ github.repository }}
+        SOURCE_TYPE: DRIVE # Default to Drive for online execution
+      working-directory: ./Novos agentes
+      run: python main.py

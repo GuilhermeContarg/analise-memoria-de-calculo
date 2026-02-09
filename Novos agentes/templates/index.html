@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Multi-Agente Financeiro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .log-terminal {
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="glass w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+        
+        <!-- Left Panel: Controls -->
+        <div class="w-full md:w-1/2 p-8 bg-white">
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Agente Financeiro AI</h1>
+            <p class="text-gray-500 mb-8 text-sm">Automatize a análise de impostos e faturamento.</p>
+
+            <form id="runForm" class="space-y-6">
+                
+                <!-- Source Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Origem dos Dados</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="source_type" value="LOCAL" class="peer sr-only" checked onchange="toggleSource()">
+                            <div class="p-4 rounded-lg border-2 border-gray-200 peer-checked:border-blue-600 peer-checked:bg-blue-50 transition hover:border-blue-300 text-center">
+                                <span class="font-semibold text-gray-700">Pasta Local</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="source_type" value="DRIVE" class="peer sr-only" onchange="toggleSource()">
+                            <div class="p-4 rounded-lg border-2 border-gray-200 peer-checked:border-blue-600 peer-checked:bg-blue-50 transition hover:border-blue-300 text-center">
+                                <span class="font-semibold text-gray-700">Google Drive</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Input Field -->
+                <div>
+                    <label id="lblInput" class="block text-sm font-medium text-gray-700 mb-2">Caminho da Pasta Local</label>
+                    <input type="text" id="pathInput" name="path_or_id" required
+                        class="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                        placeholder="Ex: C:/Documentos/Notas Fiscais">
+                    <p class="text-xs text-gray-400 mt-1">Cole o caminho completo ou ID da pasta.</p>
+                </div>
+
+                <!-- Export Options -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Opções de Exportação</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" name="export_drive" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+                            <span class="text-gray-700">Salvar no Google Drive</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" name="export_github" class="form-checkbox h-5 w-5 text-gray-600 rounded">
+                            <span class="text-gray-700">Upload para GitHub</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Run Button -->
+                <button type="submit" id="btnRun"
+                    class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transform transition active:scale-95 flex justify-center items-center gap-2">
+                    Iniciar Processamento
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </button>
+                
+                <!-- Download Button (Hidden initially) -->
+                <a href="/download_report" id="btnDownload" class="hidden block w-full text-center py-3 border-2 border-green-500 text-green-600 font-bold rounded-xl hover:bg-green-50 transition">
+                    Baixar Relatório (CSV)
+                </a>
+
+            </form>
+        </div>
+
+        <!-- Right Panel: Logs -->
+        <div class="w-full md:w-1/2 bg-gray-900 p-8 flex flex-col">
+            <h2 class="text-gray-400 text-sm font-bold uppercase tracking-wider mb-4">Live Terminal Logs</h2>
+            <div id="logContainer" class="flex-1 bg-black rounded-lg p-4 overflow-y-auto log-terminal text-green-400 text-sm leading-relaxed shadow-inner border border-gray-800">
+                <p class="opacity-50">Waiting for command...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function toggleSource() {
+            const type = document.querySelector('input[name="source_type"]:checked').value;
+            const lbl = document.getElementById('lblInput');
+            const inp = document.getElementById('pathInput');
+            
+            if (type === 'LOCAL') {
+                lbl.innerText = "Caminho da Pasta Local";
+                inp.placeholder = "Ex: C:/Documentos/Notas Fiscais";
+            } else {
+                lbl.innerText = "ID da Pasta do Google Drive";
+                inp.placeholder = "Ex: 1A2b3C4d5E...";
+            }
+        }
+
+        document.getElementById('runForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('btnRun');
+            const downloadBtn = document.getElementById('btnDownload');
+            const logs = document.getElementById('logContainer');
+
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"></svg> Processando...`;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            downloadBtn.classList.add('hidden');
+            
+            logs.innerHTML = ''; // Clear logs
+
+            // Get Form Data
+            const formData = new FormData(e.target);
+            const data = {
+                source_type: formData.get('source_type'),
+                path_or_id: formData.get('path_or_id'),
+                export_drive: formData.get('export_drive') === 'on',
+                export_github: formData.get('export_github') === 'on'
+            };
+
+            try {
+                // Start Process
+                const res = await fetch('/api/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    // Start Listening to SSE Log Stream
+                    const eventSource = new EventSource('/stream_logs');
+                    
+                    eventSource.onmessage = (event) => {
+                        const msg = event.data;
+                        if (msg === "DONE") {
+                            eventSource.close();
+                            btn.disabled = false;
+                            btn.innerText = "Iniciar Processamento";
+                            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                            downloadBtn.classList.remove('hidden');
+                            appendLog("System: Process Completed.", "text-blue-400");
+                        } else {
+                            appendLog(msg);
+                        }
+                    };
+                    
+                    eventSource.onerror = () => {
+                        eventSource.close();
+                        btn.disabled = false;
+                        btn.innerText = "Iniciar Processamento"; 
+                        appendLog("Connection lost.", "text-red-500");
+                    };
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + err.error);
+                    btn.disabled = false;
+                    btn.innerText = "Iniciar Processamento";
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Network Error");
+                btn.disabled = false;
+                btn.innerText = "Iniciar Processamento";
+            }
+        });
+
+        function appendLog(text, colorClass="text-green-400") {
+            const logs = document.getElementById('logContainer');
+            const p = document.createElement('p');
+            p.className = `${colorClass} mb-1`;
+            p.innerText = text; // Secure text content
+            logs.appendChild(p);
+            logs.scrollTop = logs.scrollHeight;
+        }
+    </script>
+</body>
+</html>
