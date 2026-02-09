@@ -1,26 +1,26 @@
-# Use official Python image
+# Dockerfile for Render Deployment
 FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies if any (e.g. for some pip packages)
-# RUN apt-get update && apt-get install -y ...
+# Install system dependencies (if any)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install flask gunicorn
 
 # Copy application code
 COPY . .
 
-# Expose port (Cloud Run defaults to 8080)
-ENV PORT 8080
+# Expose port (Render sets PORT env var)
+ENV PORT=8080
 EXPOSE 8080
 
-# Run with Gunicorn (Production Server)
-# Workers: 1 is enough for this synchronous workload, maybe 2 for concurrency
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app
+# Run the application
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080"]
